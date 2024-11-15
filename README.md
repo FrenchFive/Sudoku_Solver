@@ -26,34 +26,6 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
 
 ---
 
-## 🕹️ Usage
-
-1. **Prepare Your Puzzle**:
-   Create a `.txt` file with the 9x9 Sudoku grid, using `0` for empty cells. Example:
-   ```
-   530070000
-   600195000
-   098000060
-   800060003
-   400803001
-   700020006
-   060000280
-   000419005
-   000080079
-   ```
-
-2. **Run the Solver**:
-   Execute the script with:
-   ```bash
-   python main.py path_to_your_sudoku_file.txt
-   ```
-   Replace `path_to_your_sudoku_file.txt` with the path to your puzzle file.
-
-3. **View the Solution**:
-   The solved Sudoku grid will be displayed in the terminal. 🎉
-
----
-
 ## 📜 License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
@@ -66,5 +38,3 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 - 🧠 Inspired by the beauty and logic of Sudoku puzzles.
 
 ---
-
-This README gives your repository a professional and visually engaging look. Let me know if you’d like further refinements! 🚀
