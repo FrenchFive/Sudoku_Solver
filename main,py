@@ -5,21 +5,128 @@ from multiprocessing import Manager
 import threading
 
 def input_grid():
-    grid = []
-    print("Enter the sudoku grid, row by row, using zeros for empty cells.")
-    print("Separate numbers with spaces.")
-    for i in range(9):
-        while True:
-            try:
-                row = input(f"Row {i+1}: ")
-                row_values = list(map(int, row.strip().split()))
-                if len(row_values) != 9:
-                    print("Please enter exactly 9 numbers.")
-                    continue
-                grid.append(row_values)
-                break
-            except ValueError:
-                print("Invalid input. Please enter numbers separated by spaces.")
+    import http.server
+    import threading
+    import urllib.parse
+
+    grid = [[0]*9 for _ in range(9)]
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    save_file = os.path.join(script_dir, "sudoku_save.txt")
+
+    # Try to load saved grid
+    if os.path.exists(save_file):
+        with open(save_file, 'r') as f:
+            lines = f.readlines()
+            if len(lines) == 9:
+                for i in range(9):
+                    row_values = list(map(int, lines[i].strip().split()))
+                    if len(row_values) == 9:
+                        grid[i] = row_values
+
+    # Create a handler class
+    class SudokuHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/' or self.path == '/index.html':
+                # Read index.html
+                index_path = os.path.join(script_dir, 'index.html')
+                try:
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                except FileNotFoundError:
+                    self.send_error(404, "File not found.")
+                    return
+                # Generate table rows
+                table_rows = ''
+                for i in range(9):
+                    table_rows += '<tr>'
+                    for j in range(9):
+                        value = grid[i][j] if grid[i][j] != 0 else ''
+                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                    table_rows += '</tr>'
+                # Replace placeholder
+                html = html.replace('{table_rows}', table_rows)
+                # Send response
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(html.encode('utf-8'))
+            elif self.path == '/thankyou.html':
+                thankyou_path = os.path.join(script_dir, 'thankyou.html')
+                try:
+                    with open(thankyou_path, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                except FileNotFoundError:
+                    self.send_error(404, "File not found.")
+                    return
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(html.encode('utf-8'))
+            else:
+                # Remove leading slash from path
+                if self.path.startswith('/'):
+                    self.path = self.path[1:]
+                # Serve static files
+                return http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+        def do_POST(self):
+            # Process form data
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            # Parse form data
+            parsed_data = urllib.parse.parse_qs(post_data.decode('utf-8'))
+            # Update grid
+            for i in range(9):
+                for j in range(9):
+                    cell_name = 'cell_{}_{}'.format(i, j)
+                    value = parsed_data.get(cell_name, [''])[0]
+                    try:
+                        num = int(value)
+                        if 1 <= num <= 9:
+                            grid[i][j] = num
+                        else:
+                            grid[i][j] = 0
+                    except ValueError:
+                        grid[i][j] = 0
+            # Save grid to file
+            with open(save_file, 'w') as f:
+                for row in grid:
+                    f.write(' '.join(map(str, row)) + '\n')
+            # Send response
+            self.send_response(303)
+            self.send_header('Location', '/thankyou.html')
+            self.end_headers()
+            # Signal that input is received
+            self.server.input_received = True
+
+    # Save the current working directory
+    original_cwd = os.getcwd()
+    # Change to the script directory
+    os.chdir(script_dir)
+    try:
+        # Create the server
+        server_address = ('', 8000)
+        httpd = http.server.HTTPServer(server_address, SudokuHTTPRequestHandler)
+        httpd.input_received = False
+
+        # Run the server in a separate thread
+        server_thread = threading.Thread(target=httpd.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+
+        print("Please open your web browser and go to http://localhost:8000 to enter the Sudoku.")
+
+        # Wait until input is received
+        while not httpd.input_received:
+            time.sleep(0.1)
+
+        # Shutdown the server
+        httpd.shutdown()
+        server_thread.join()
+    finally:
+        # Restore the original working directory
+        os.chdir(original_cwd)
+
     return grid
 
 def print_grid(grid):
@@ -31,7 +138,7 @@ def print_grid(grid):
                 print("| ", end='')
             print(str(grid[i][j]) if grid[i][j] != 0 else '.', end=' ')
         print()
-        
+
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -43,25 +150,28 @@ def find_empty_cell(grid):
     return None
 
 def is_valid(grid, row, col, num):
+    # Check row
     if num in grid[row]:
         return False
+    # Check column
     if num in (grid[i][col] for i in range(9)):
         return False
+    # Check box
     start_row = row - row % 3
     start_col = col - col % 3
-    if num in (
-        grid[start_row + i][start_col + j]
-        for i in range(3) for j in range(3)
-    ):
-        return False
+    for i in range(3):
+        for j in range(3):
+            if grid[start_row + i][start_col + j] == num:
+                return False
     return True
 
 def get_possible_numbers(grid, row, col):
     numbers = set(range(1, 10))
-    numbers -= set(grid[row])
-    numbers -= set(grid[i][col] for i in range(9))
+    numbers -= set(grid[row])  # Remove numbers present in the row
+    numbers -= set(grid[i][col] for i in range(9))  # Remove numbers present in the column
     start_row = row - row % 3
     start_col = col - col % 3
+    # Remove numbers present in the 3x3 box
     numbers -= set(
         grid[start_row + i][start_col + j]
         for i in range(3) for j in range(3)
@@ -84,7 +194,7 @@ def count_constraints(grid, row, col, num):
     return count
 
 def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=None, stats=None):
-    if stop_event.is_set():
+    if stop_event and stop_event.is_set():
         return False
     empty_cell = find_empty_cell(grid)
     if not empty_cell:
@@ -97,7 +207,7 @@ def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=Non
         return False
     possible_numbers = sorted(possible_numbers, key=lambda num: count_constraints(grid, row, col, num))
     for num in possible_numbers:
-        if stop_event.is_set():
+        if stop_event and stop_event.is_set():
             return False
         if is_valid(grid, row, col, num):
             grid[row][col] = num

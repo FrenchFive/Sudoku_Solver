@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sudoku Solver</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <h1>Enter Sudoku</h1>
+    <form method="POST" action="/">
+        <table>
+            <!-- Python script dynamically fills the rows and cells -->
+            {table_rows}
+        </table>
+        <input type="submit" value="Solve">
+    </form>
+    <script>
+        document.addEventListener("keydown", (e) => {
+            const activeElement = document.activeElement;
+    
+            // Check if the active element is an input
+            if (activeElement.tagName === "INPUT" && activeElement.type === "text") {
+                if (!isNaN(e.key) && e.key !== " " && e.key !== "0") {
+                    // Replace the content of the input with the pressed key (non-zero numbers)
+                    activeElement.value = e.key;
+                    e.preventDefault(); // Prevent default behavior
+                } else if (e.key === "0") {
+                    // Clear the input when "0" is pressed
+                    activeElement.value = "";
+                    e.preventDefault(); // Prevent default behavior
+                }
+    
+                // Handle arrow key navigation
+                const currentCell = activeElement.parentElement;
+                const row = currentCell.parentElement;
+                let nextInput;
+    
+                switch (e.key) {
+                    case "ArrowUp":
+                        if (row.previousElementSibling) {
+                            nextInput = row.previousElementSibling.children[currentCell.cellIndex]?.querySelector("input");
+                        }
+                        break;
+                    case "ArrowDown":
+                        if (row.nextElementSibling) {
+                            nextInput = row.nextElementSibling.children[currentCell.cellIndex]?.querySelector("input");
+                        }
+                        break;
+                    case "ArrowLeft":
+                        if (currentCell.previousElementSibling) {
+                            nextInput = currentCell.previousElementSibling.querySelector("input");
+                        }
+                        break;
+                    case "ArrowRight":
+                        if (currentCell.nextElementSibling) {
+                            nextInput = currentCell.nextElementSibling.querySelector("input");
+                        }
+                        break;
+                }
+    
+                // Move focus to the next input if available
+                if (nextInput) {
+                    nextInput.focus();
+                    e.preventDefault();
+                }
+            }
+        });
+    </script>
+      
+ 
+</body>
+</html>
