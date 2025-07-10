@@ -5,67 +5,162 @@
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
-    <h1>Enter Sudoku</h1>
-    <form method="POST" action="/">
-        <table>
-            <!-- Python script dynamically fills the rows and cells -->
-            {table_rows}
-        </table>
-        <input type="submit" value="Solve">
-    </form>
+    <div class="container">
+        <h1>Enter Sudoku</h1>
+        <form method="POST" action="/" onsubmit="showLoading(event);">
+            <table>
+                <!-- Python script dynamically fills the rows and cells -->
+                {table_rows}
+            </table>
+            <input type="submit" value="Solve" id="solveButton">
+            <div id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Solving... Please wait.</p>
+            </div>
+        </form>
+        <div id="solution-container" style="display: none;">
+            <h2>Solution:</h2>
+            <table id="solution-table">
+                <!-- Solution will be inserted here -->
+            </table>
+        </div>
+    </div>
     <script>
-        document.addEventListener("keydown", (e) => {
-            const activeElement = document.activeElement;
+        window.onload = function() {
+            console.log('JavaScript is running');
     
-            // Check if the active element is an input
-            if (activeElement.tagName === "INPUT" && activeElement.type === "text") {
-                if (!isNaN(e.key) && e.key !== " " && e.key !== "0") {
-                    // Replace the content of the input with the pressed key (non-zero numbers)
-                    activeElement.value = e.key;
-                    e.preventDefault(); // Prevent default behavior
-                } else if (e.key === "0") {
-                    // Clear the input when "0" is pressed
-                    activeElement.value = "";
-                    e.preventDefault(); // Prevent default behavior
+            window.showLoading = function(event) {
+                event.preventDefault(); // Prevent the default form submission
+                console.log('showLoading called');
+                document.getElementById('solveButton').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+    
+                // Start checking for solution
+                checkSolution();
+    
+                // Serialize the form data
+                var form = document.querySelector('form');
+                var formData = new FormData(form);
+                var urlEncodedData = new URLSearchParams();
+    
+                for (var pair of formData.entries()) {
+                    urlEncodedData.append(pair[0], pair[1]);
                 }
     
-                // Handle arrow key navigation
-                const currentCell = activeElement.parentElement;
-                const row = currentCell.parentElement;
-                let nextInput;
-    
-                switch (e.key) {
-                    case "ArrowUp":
-                        if (row.previousElementSibling) {
-                            nextInput = row.previousElementSibling.children[currentCell.cellIndex]?.querySelector("input");
+                fetch('/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: urlEncodedData.toString()
+                })
+                .then(function(response) {
+                    console.log('Form submitted via AJAX');
+                })
+                .catch(function(error) {
+                    console.error('Error submitting form:', error);
+                });
+            };
+
+            function checkSolution() {
+                console.log('Checking for solution...');
+                fetch('/solution')
+                    .then(function(response) {
+                        console.log('Received response with status:', response.status);
+                        if (response.status === 200) {
+                            return response.json();
+                        } else {
+                            // Solution not ready, try again
+                            console.log('Solution not ready, retrying...');
+                            setTimeout(checkSolution, 1000);
+                            return null;
                         }
-                        break;
-                    case "ArrowDown":
-                        if (row.nextElementSibling) {
-                            nextInput = row.nextElementSibling.children[currentCell.cellIndex]?.querySelector("input");
+                    })
+                    .then(function(data) {
+                        if (data) {
+                            console.log('Solution data received:', data);
+                            displaySolution(data.solution, data.original);
                         }
-                        break;
-                    case "ArrowLeft":
-                        if (currentCell.previousElementSibling) {
-                            nextInput = currentCell.previousElementSibling.querySelector("input");
+                    })
+                    .catch(function(error) {
+                        console.error('Error fetching solution:', error);
+                        setTimeout(checkSolution, 1000);
+                    });
+            }
+
+            function displaySolution(solution, original) {
+                console.log('Displaying solution...');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('solution-container').style.display = 'block';
+
+                var table = document.getElementById('solution-table');
+                table.innerHTML = '';
+
+                for (var i = 0; i < 9; i++) {
+                    var row = document.createElement('tr');
+                    for (var j = 0; j < 9; j++) {
+                        var cell = document.createElement('td');
+                        cell.textContent = solution[i][j];
+                        if (original[i][j] === 0) {
+                            cell.classList.add('solver-filled');
                         }
-                        break;
-                    case "ArrowRight":
-                        if (currentCell.nextElementSibling) {
-                            nextInput = currentCell.nextElementSibling.querySelector("input");
-                        }
-                        break;
-                }
-    
-                // Move focus to the next input if available
-                if (nextInput) {
-                    nextInput.focus();
-                    e.preventDefault();
+                        row.appendChild(cell);
+                    }
+                    table.appendChild(row);
                 }
             }
-        });
+
+            document.addEventListener("keydown", function(e) {
+                var activeElement = document.activeElement;
+
+                // Check if the active element is an input
+                if (activeElement.tagName === "INPUT" && activeElement.type === "text") {
+                    if (!isNaN(e.key) && e.key !== " " && e.key !== "0") {
+                        // Replace the content of the input with the pressed key (non-zero numbers)
+                        activeElement.value = e.key;
+                        e.preventDefault(); // Prevent default behavior
+                    } else if (e.key === "0" || e.key === "Backspace" || e.key === "Delete") {
+                        // Clear the input when "0", "Backspace", or "Delete" is pressed
+                        activeElement.value = "";
+                        e.preventDefault(); // Prevent default behavior
+                    }
+
+                    // Handle arrow key navigation
+                    var currentCell = activeElement.parentElement;
+                    var row = currentCell.parentElement;
+                    var nextInput = null;
+
+                    switch (e.key) {
+                        case "ArrowUp":
+                            if (row.previousElementSibling && row.previousElementSibling.children[currentCell.cellIndex]) {
+                                nextInput = row.previousElementSibling.children[currentCell.cellIndex].querySelector("input");
+                            }
+                            break;
+                        case "ArrowDown":
+                            if (row.nextElementSibling && row.nextElementSibling.children[currentCell.cellIndex]) {
+                                nextInput = row.nextElementSibling.children[currentCell.cellIndex].querySelector("input");
+                            }
+                            break;
+                        case "ArrowLeft":
+                            if (currentCell.previousElementSibling) {
+                                nextInput = currentCell.previousElementSibling.querySelector("input");
+                            }
+                            break;
+                        case "ArrowRight":
+                            if (currentCell.nextElementSibling) {
+                                nextInput = currentCell.nextElementSibling.querySelector("input");
+                            }
+                            break;
+                    }
+
+                    // Move focus to the next input if available
+                    if (nextInput) {
+                        nextInput.focus();
+                        e.preventDefault();
+                    }
+                }
+            });
+        };
     </script>
-      
- 
 </body>
 </html>

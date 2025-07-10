@@ -15,6 +15,11 @@ h1 {
     color: #333;
 }
 
+h2 {
+    font-size: 1.5rem;
+    color: #333;
+}
+
 form {
     display: inline-block;
     margin: auto;
@@ -89,4 +94,34 @@ table tr td:nth-child(3n) {
 
 input[type="text"]::placeholder {
     color: #bbb;
+}
+
+.solver-filled {
+    background-color: #b3ffb3;  /* Light green background */
+}
+
+#loading {
+    font-size: 1.2rem;
+    color: #333;
+    margin-top: 20px;
+}
+
+#solution-container {
+    margin-top: 20px;
+}
+
+#solution-table td {
+    width: 60px;
+    height: 60px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+#solution-table tr:nth-child(3n) td {
+    border-bottom: 3px solid #333;
+}
+
+#solution-table td:nth-child(3n) {
+    border-right: 3px solid #333;
 }
