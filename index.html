@@ -7,23 +7,19 @@
 <body>
     <div class="container">
         <h1>Enter Sudoku</h1>
-        <form method="POST" action="/" onsubmit="showLoading(event);">
+        <form method="POST" action="/" onsubmit="showLoading(event);" autocomplete="off">
             <table>
                 <!-- Python script dynamically fills the rows and cells -->
                 {table_rows}
             </table>
             <input type="submit" value="Solve" id="solveButton">
+            <input type="button" value="Clear" id="clearButton" onclick="clearBoard()">
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
                 <p>Solving... Please wait.</p>
             </div>
         </form>
-        <div id="solution-container" style="display: none;">
-            <h2>Solution:</h2>
-            <table id="solution-table">
-                <!-- Solution will be inserted here -->
-            </table>
-        </div>
+        <div id="stats" style="display: none;"></div>
     </div>
     <script>
         window.onload = function() {
@@ -79,7 +75,7 @@
                     .then(function(data) {
                         if (data) {
                             console.log('Solution data received:', data);
-                            displaySolution(data.solution, data.original);
+                            displaySolution(data.solution, data.original, data.attempts, data.backtracks);
                         }
                     })
                     .catch(function(error) {
@@ -88,26 +84,26 @@
                     });
             }
 
-            function displaySolution(solution, original) {
+            function displaySolution(solution, original, attempts, backtracks) {
                 console.log('Displaying solution...');
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('solution-container').style.display = 'block';
-
-                var table = document.getElementById('solution-table');
-                table.innerHTML = '';
 
                 for (var i = 0; i < 9; i++) {
-                    var row = document.createElement('tr');
                     for (var j = 0; j < 9; j++) {
-                        var cell = document.createElement('td');
-                        cell.textContent = solution[i][j];
-                        if (original[i][j] === 0) {
-                            cell.classList.add('solver-filled');
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        if (input) {
+                            input.value = solution[i][j];
+                            if (original[i][j] === 0) {
+                                input.classList.add('solver-filled');
+                            }
                         }
-                        row.appendChild(cell);
                     }
-                    table.appendChild(row);
                 }
+
+                var statsDiv = document.getElementById('stats');
+                statsDiv.textContent = 'Attempts: ' + attempts + ' | Backtracks: ' + backtracks;
+                statsDiv.style.display = 'block';
+                document.getElementById('solveButton').style.display = 'inline-block';
             }
 
             document.addEventListener("keydown", function(e) {
@@ -160,6 +156,15 @@
                     }
                 }
             });
+
+            window.clearBoard = function() {
+                var inputs = document.querySelectorAll('td input[type="text"]');
+                inputs.forEach(function(input) {
+                    input.value = '';
+                    input.classList.remove('solver-filled');
+                });
+                document.getElementById('stats').style.display = 'none';
+            };
         };
     </script>
 </body>

@@ -84,6 +84,25 @@ input[type="submit"]:hover {
     background-color: #287acc;
 }
 
+input[type="button"] {
+    margin-top: 20px;
+    margin-left: 10px;
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    background-color: #cccccc;
+    color: #333;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+}
+
+input[type="button"]:hover {
+    background-color: #bbbbbb;
+}
+
 table tr:nth-child(3n) td {
     border-bottom: 3px solid #333;
 }
@@ -106,22 +125,12 @@ input[type="text"]::placeholder {
     margin-top: 20px;
 }
 
-#solution-container {
+
+#stats {
     margin-top: 20px;
-}
-
-#solution-table td {
-    width: 60px;
-    height: 60px;
-    border: 1px solid #ddd;
-    text-align: center;
-    font-size: 1.5rem;
-}
-
-#solution-table tr:nth-child(3n) td {
-    border-bottom: 3px solid #333;
-}
-
-#solution-table td:nth-child(3n) {
-    border-right: 3px solid #333;
+    padding: 10px;
+    background-color: #add8e6;
+    color: #333;
+    display: inline-block;
+    border-radius: 4px;
 }

@@ -34,7 +34,7 @@ def run_server(shared_state):
                     table_rows += '<tr>'
                     for j in range(9):
                         value = grid[i][j] if grid[i][j] != 0 else ''
-                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off"></td>'.format(i, j, value)
                     table_rows += '</tr>'
                 # Replace placeholder
                 html = html.replace('{table_rows}', table_rows)
@@ -49,9 +49,12 @@ def run_server(shared_state):
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
+                    stats = shared_state.get('stats', {'attempts': 0, 'backtracks': 0})
                     response = {
                         'solution': shared_state['solution'],
-                        'original': shared_state['grid']
+                        'original': shared_state['grid'],
+                        'attempts': stats.get('attempts', 0),
+                        'backtracks': stats.get('backtracks', 0)
                     }
                     self.wfile.write(json.dumps(response).encode('utf-8'))
                 else:
@@ -103,7 +106,7 @@ def run_server(shared_state):
                 table_rows += '<tr>'
                 for j in range(9):
                     value = grid[i][j] if grid[i][j] != 0 else ''
-                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off"></td>'.format(i, j, value)
                 table_rows += '</tr>'
             # Replace placeholder
             html = html.replace('{table_rows}', table_rows)
@@ -271,6 +274,7 @@ def main():
     shared_state = manager.dict()
     shared_state['grid'] = [[0]*9 for _ in range(9)]
     shared_state['solution'] = None
+    shared_state['stats'] = {'attempts': 0, 'backtracks': 0}
     shared_state['input_received'] = False
     shared_state['server_failed'] = False
     shared_state['port'] = None
@@ -371,6 +375,10 @@ def main():
         print_grid(solved_grid)
         # Update shared_state with the solution
         shared_state['solution'] = solved_grid
+        shared_state['stats'] = {
+            'attempts': stats['attempts'],
+            'backtracks': stats['backtracks']
+        }
     else:
         print("No solution exists.")
 
