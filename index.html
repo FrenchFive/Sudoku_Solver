@@ -19,18 +19,33 @@
                 <p>Solving... Please wait.</p>
             </div>
         </form>
-        <div id="stats" style="display: none;"></div>
+        
     </div>
     <script>
+        var originalGrid = [];
+        var progressInterval = null;
         window.onload = function() {
             console.log('JavaScript is running');
-    
+
             window.showLoading = function(event) {
                 event.preventDefault(); // Prevent the default form submission
                 console.log('showLoading called');
                 document.getElementById('solveButton').style.display = 'none';
                 document.getElementById('loading').style.display = 'block';
-    
+
+                originalGrid = [];
+                for (var i = 0; i < 9; i++) {
+                    originalGrid[i] = [];
+                    for (var j = 0; j < 9; j++) {
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        var val = parseInt(input.value) || 0;
+                        originalGrid[i][j] = val;
+                        input.disabled = true;
+                    }
+                }
+
+                progressInterval = setInterval(fetchProgress, 500);
+
                 // Start checking for solution
                 checkSolution();
     
@@ -75,7 +90,7 @@
                     .then(function(data) {
                         if (data) {
                             console.log('Solution data received:', data);
-                            displaySolution(data.solution, data.original, data.attempts, data.backtracks);
+                            displaySolution(data.solution, data.original);
                         }
                     })
                     .catch(function(error) {
@@ -84,15 +99,51 @@
                     });
             }
 
-            function displaySolution(solution, original, attempts, backtracks) {
+            function fetchProgress() {
+                fetch('/progress')
+                    .then(function(response) {
+                        if (response.status === 200) {
+                            return response.json();
+                        }
+                    })
+                    .then(function(data) {
+                        if (data && data.grid) {
+                            updateGrid(data.grid);
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Error fetching progress:', error);
+                    });
+            }
+
+            function updateGrid(grid) {
+                for (var i = 0; i < 9; i++) {
+                    for (var j = 0; j < 9; j++) {
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        if (input) {
+                            if (grid[i][j] !== 0) {
+                                input.value = grid[i][j];
+                                if (originalGrid[i][j] === 0) {
+                                    input.classList.add('solving');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            function displaySolution(solution, original) {
                 console.log('Displaying solution...');
                 document.getElementById('loading').style.display = 'none';
+                clearInterval(progressInterval);
 
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
                         if (input) {
                             input.value = solution[i][j];
+                            input.disabled = false;
+                            input.classList.remove('solving');
                             if (original[i][j] === 0) {
                                 input.classList.add('solver-filled');
                             }
@@ -100,9 +151,6 @@
                     }
                 }
 
-                var statsDiv = document.getElementById('stats');
-                statsDiv.textContent = 'Attempts: ' + attempts + ' | Backtracks: ' + backtracks;
-                statsDiv.style.display = 'block';
                 document.getElementById('solveButton').style.display = 'inline-block';
             }
 
@@ -162,8 +210,9 @@
                 inputs.forEach(function(input) {
                     input.value = '';
                     input.classList.remove('solver-filled');
+                    input.classList.remove('solving');
+                    input.disabled = false;
                 });
-                document.getElementById('stats').style.display = 'none';
             };
         };
     </script>

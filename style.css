@@ -119,6 +119,10 @@ input[type="text"]::placeholder {
     background-color: #b3ffb3;  /* Light green background */
 }
 
+.solving {
+    background-color: #add8e6; /* Light blue for in-progress cells */
+}
+
 #loading {
     font-size: 1.2rem;
     color: #333;
@@ -126,11 +130,3 @@ input[type="text"]::placeholder {
 }
 
 
-#stats {
-    margin-top: 20px;
-    padding: 10px;
-    background-color: #add8e6;
-    color: #333;
-    display: inline-block;
-    border-radius: 4px;
-}

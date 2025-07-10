@@ -49,17 +49,24 @@ def run_server(shared_state):
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    stats = shared_state.get('stats', {'attempts': 0, 'backtracks': 0})
                     response = {
                         'solution': shared_state['solution'],
-                        'original': shared_state['grid'],
-                        'attempts': stats.get('attempts', 0),
-                        'backtracks': stats.get('backtracks', 0)
+                        'original': shared_state['grid']
                     }
                     self.wfile.write(json.dumps(response).encode('utf-8'))
                 else:
                     # Solution not ready
                     self.send_response(204)  # No Content
+                    self.end_headers()
+            elif self.path == '/progress':
+                progress = shared_state.get('progress', None)
+                if progress is not None:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'grid': progress}).encode('utf-8'))
+                else:
+                    self.send_response(204)
                     self.end_headers()
             else:
                 # Serve static files
@@ -197,7 +204,7 @@ def count_constraints(grid, row, col, num):
                 count += 1
     return count
 
-def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=None, stats=None):
+def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=None, stats=None, shared_state=None):
     if stop_event and stop_event.is_set():
         return False
     empty_cell = find_empty_cell(grid)
@@ -219,7 +226,9 @@ def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=Non
                 stats['attempts'] += 1
             if progress is not None:
                 progress['grid'] = [row[:] for row in grid]
-            if solve_sudoku(grid, queue, progress, worker_id, stop_event, stats):
+            if shared_state is not None:
+                shared_state['progress'] = [row[:] for row in grid]
+            if solve_sudoku(grid, queue, progress, worker_id, stop_event, stats, shared_state):
                 if queue and queue.empty():
                     queue.put([row[:] for row in grid])
                 return True
@@ -228,7 +237,7 @@ def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=Non
                 stats['backtracks'] += 1
     return False
 
-def worker(grid, queue, progress, worker_id, stop_event, stats, initial_cell):
+def worker(grid, queue, progress, worker_id, stop_event, stats, initial_cell, shared_state=None):
     grid_copy = [row[:] for row in grid]
     row, col, possible_numbers = initial_cell
     possible_numbers = sorted(possible_numbers, key=lambda num: count_constraints(grid_copy, row, col, num))
@@ -241,7 +250,9 @@ def worker(grid, queue, progress, worker_id, stop_event, stats, initial_cell):
                 stats['attempts'] += 1
             if progress is not None:
                 progress['grid'] = [row[:] for row in grid_copy]
-            if solve_sudoku(grid_copy, queue, progress, worker_id, stop_event, stats):
+            if shared_state is not None:
+                shared_state['progress'] = [row[:] for row in grid_copy]
+            if solve_sudoku(grid_copy, queue, progress, worker_id, stop_event, stats, shared_state):
                 stop_event.set()
                 if queue.empty():
                     queue.put([row[:] for row in grid_copy])
@@ -275,6 +286,7 @@ def main():
     shared_state['grid'] = [[0]*9 for _ in range(9)]
     shared_state['solution'] = None
     shared_state['stats'] = {'attempts': 0, 'backtracks': 0}
+    shared_state['progress'] = [[0]*9 for _ in range(9)]
     shared_state['input_received'] = False
     shared_state['server_failed'] = False
     shared_state['port'] = None
@@ -327,6 +339,7 @@ def main():
     queue = manager.Queue()
     progress = manager.dict()
     progress['grid'] = [row[:] for row in grid]
+    shared_state['progress'] = [row[:] for row in grid]
     stats = manager.dict()
     stats['attempts'] = 0
     stats['backtracks'] = 0
@@ -355,7 +368,7 @@ def main():
     for worker_id in range(num_workers):
         initial_cell = empty_cells[worker_id]
         p = multiprocessing.Process(target=worker, args=(
-            grid, queue, progress, worker_id, stop_event, stats, initial_cell))
+            grid, queue, progress, worker_id, stop_event, stats, initial_cell, shared_state))
         processes.append(p)
         p.start()
 
@@ -379,6 +392,7 @@ def main():
             'attempts': stats['attempts'],
             'backtracks': stats['backtracks']
         }
+        shared_state['progress'] = solved_grid
     else:
         print("No solution exists.")
 
