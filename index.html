@@ -120,13 +120,12 @@
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
-                        if (input) {
-                            if (grid[i][j] !== 0) {
-                                input.value = grid[i][j];
-                                if (originalGrid[i][j] === 0) {
-                                    input.classList.add('solving');
-                                }
-                            }
+                        if (!input) continue;
+
+                        if (originalGrid[i][j] === 0 && grid[i][j] !== 0) {
+                            // Only fill cells the user left empty
+                            input.value = grid[i][j];
+                            input.classList.add('solving');
                         }
                     }
                 }

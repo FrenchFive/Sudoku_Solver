@@ -117,10 +117,12 @@ input[type="text"]::placeholder {
 
 .solver-filled {
     background-color: #b3ffb3;  /* Light green background */
+    border: 1px solid #ddd;     /* Preserve grid lines */
 }
 
 .solving {
     background-color: #add8e6; /* Light blue for in-progress cells */
+    border: 1px solid #ddd;    /* Preserve grid lines */
 }
 
 #loading {
