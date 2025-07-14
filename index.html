@@ -14,6 +14,7 @@
             </table>
             <input type="submit" value="Solve" id="solveButton">
             <button type="button" id="clearButton">Clear</button>
+            <button type="button" id="simulateButton" style="display:none;">SIMULATE</button>
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
                 <p>Solving... Please wait.</p>
@@ -152,8 +153,70 @@
                     applyGrid(solution, last, original, false);
                     var inputs = document.querySelectorAll('input[type="text"]');
                     inputs.forEach(function(inp){ inp.disabled = true; });
+                    window.solutionData = {solution: solution, original: original};
+                    document.getElementById('simulateButton').style.display = 'inline-block';
                 });
             }
+
+            function sendKey(elem, key){
+                var evt = new KeyboardEvent('keydown', {key: key, bubbles: true});
+                elem.dispatchEvent(evt);
+            }
+
+            function simulateTyping(){
+                if(!window.solutionData) return;
+                var button = document.getElementById('simulateButton');
+                var sol = window.solutionData.solution;
+                var orig = window.solutionData.original;
+                var inputs = document.querySelectorAll('input[type="text"]');
+                inputs.forEach(function(inp){ inp.disabled = false; });
+                for(var r=0;r<9;r++){
+                    for(var c=0;c<9;c++){
+                        var inp = document.querySelector('input[name="cell_'+r+'_'+c+'"]');
+                        if(orig[r][c] === 0){ inp.value = ''; }
+                        else{ inp.value = orig[r][c] || ''; }
+                    }
+                }
+                var r=0,c=0;
+                var delay=0;
+                function step(){
+                    var inp = document.querySelector('input[name="cell_'+r+'_'+c+'"]');
+                    inp.focus();
+                    if(orig[r][c] === 0){
+                        sendKey(inp, String(sol[r][c]));
+                    }
+                    if(r===8 && c===8){
+                        button.disabled = false;
+                        return;
+                    }
+                    if(c < 8){
+                        sendKey(inp,'ArrowRight');
+                        c++;
+                    } else {
+                        sendKey(inp,'ArrowDown');
+                        r++;
+                        for(var k=0;k<8;k++){ sendKey(document.activeElement,'ArrowLeft'); }
+                        c=0;
+                    }
+                    setTimeout(step, 100);
+                }
+                step();
+            }
+
+            document.getElementById('simulateButton').addEventListener('click', function(){
+                var button = this;
+                var count = 5;
+                button.disabled = true;
+                var interval = setInterval(function(){
+                    button.textContent = 'SIMULATE ('+count+')';
+                    count--;
+                    if(count < 0){
+                        clearInterval(interval);
+                        button.textContent = 'SIMULATE';
+                        simulateTyping();
+                    }
+                },1000);
+            });
 
             document.addEventListener("keydown", function(e) {
                 var activeElement = document.activeElement;

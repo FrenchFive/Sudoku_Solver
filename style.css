@@ -125,6 +125,24 @@ input[type="text"]::placeholder {
 #clearButton:hover {
     background-color: #cc5252;
 }
+
+#simulateButton {
+    margin-left: 10px;
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    background-color: #66cc66;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+}
+
+#simulateButton:hover {
+    background-color: #529952;
+}
 .proposed {background-color: #ccc;}
 .changed {background-color: #66b3ff;}
 .removed {background-color: #ff9999;}
