@@ -102,26 +102,25 @@
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
                         if (!input) continue;
                         var cell = input.parentElement;
-                        cell.classList.remove('proposed','changed','removed');
+                        cell.classList.remove('changed','removed','user-input','solver-filled');
                         var val = grid[i][j] || '';
                         input.value = val;
-                        if(highlight && prev){
-                            var prevVal = prev[i][j] || 0;
-                            if(val === ''){
-                                if(prevVal !== 0){
-                                    cell.classList.add('removed');
-                                }
-                            } else {
-                                if(prevVal === 0){
-                                    cell.classList.add('proposed');
+
+                        if(highlight){
+                            if(original && original[i][j] !== 0){
+                                cell.classList.add('user-input');
+                            }
+                            if(prev){
+                                var prevVal = prev[i][j] || 0;
+                                if(val === ''){
+                                    if(prevVal !== 0){
+                                        cell.classList.add('removed');
+                                    }
                                 } else if(prevVal !== grid[i][j]){
                                     cell.classList.add('changed');
-                                } else {
-                                    cell.classList.add('proposed');
                                 }
                             }
-                        }
-                        if(original && original[i][j] === 0 && grid[i][j]){
+                        } else if(original && original[i][j] === 0 && grid[i][j]){
                             cell.classList.add('solver-filled');
                         }
                     }
