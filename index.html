@@ -95,21 +95,48 @@
                     });
             }
 
-            function displaySolution(solution, original) {
-                console.log('Displaying solution...');
+            async function displaySolution(solution, original) {
+                console.log('Displaying solution with animation...');
                 document.getElementById('loading').style.display = 'none';
 
+                // Disable all inputs and keep original numbers
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
                         if (input) {
-                            input.value = solution[i][j];
-                            input.disabled = true;
-                            if (original[i][j] === 0) {
-                                input.parentElement.classList.add('solver-filled');
+                            if (original[i][j] !== 0) {
+                                input.value = original[i][j];
                             }
+                            input.disabled = true;
                         }
                     }
+                }
+
+                var cells = [];
+                for (var i = 0; i < 9; i++) {
+                    for (var j = 0; j < 9; j++) {
+                        if (original[i][j] === 0) {
+                            cells.push({i: i, j: j});
+                        }
+                    }
+                }
+
+                for (var index = 0; index < cells.length; index++) {
+                    var i = cells[index].i;
+                    var j = cells[index].j;
+                    var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                    if (!input) continue;
+                    var target = solution[i][j];
+                    input.parentElement.classList.add('current-cell');
+                    for (var n = 1; n <= 9; n++) {
+                        input.value = n;
+                        if (n == target) break;
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+                    await new Promise(r => setTimeout(r, 50));
+                    input.parentElement.classList.remove('current-cell');
+                    input.parentElement.classList.add('solver-filled');
+                    input.value = target;
                 }
             }
 
