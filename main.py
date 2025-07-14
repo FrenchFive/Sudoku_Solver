@@ -62,7 +62,10 @@ def run_server(shared_state):
                     self.send_response(204)  # No Content
                     self.end_headers()
             elif self.path == '/progress':
-                progress = shared_state.get('progress')
+                try:
+                    progress = shared_state.get('progress')
+                except FileNotFoundError:
+                    progress = None
                 if progress and progress.get('grid') is not None:
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
