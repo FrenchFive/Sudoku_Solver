@@ -7,6 +7,9 @@ import http.server
 import urllib.parse
 import json
 
+# Time to wait between each try when displaying progress
+WAIT_TIME = 0.1
+
 def run_server(shared_state):
     import http.server
     import os
@@ -57,6 +60,17 @@ def run_server(shared_state):
                 else:
                     # Solution not ready
                     self.send_response(204)  # No Content
+                    self.end_headers()
+            elif self.path == '/progress':
+                progress = shared_state.get('progress')
+                if progress and progress.get('grid') is not None:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {'grid': progress['grid']}
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+                else:
+                    self.send_response(204)
                     self.end_headers()
             else:
                 # Serve static files
@@ -246,6 +260,7 @@ def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=Non
                 stats['attempts'] += 1
             if progress is not None:
                 progress['grid'] = [row[:] for row in grid]
+            time.sleep(WAIT_TIME)
             if solve_sudoku(grid, queue, progress, worker_id, stop_event, stats):
                 if queue and queue.empty():
                     queue.put([row[:] for row in grid])
@@ -268,6 +283,7 @@ def worker(grid, queue, progress, worker_id, stop_event, stats, initial_cell):
                 stats['attempts'] += 1
             if progress is not None:
                 progress['grid'] = [row[:] for row in grid_copy]
+            time.sleep(WAIT_TIME)
             if solve_sudoku(grid_copy, queue, progress, worker_id, stop_event, stats):
                 stop_event.set()
                 if queue.empty():
@@ -285,7 +301,7 @@ def display_progress(progress, stop_event):
             print_grid(progress['grid'])
         else:
             print("Initializing...")
-        time.sleep(0.5)
+        time.sleep(WAIT_TIME)
     clear_screen()
     if 'grid' in progress:
         print("Solved Sudoku:")
@@ -313,6 +329,7 @@ def solve_puzzle(shared_state, save_file):
     queue = manager.Queue()
     progress = manager.dict()
     progress['grid'] = [row[:] for row in grid]
+    shared_state['progress'] = progress
     stats = manager.dict()
     stats['attempts'] = 0
     stats['backtracks'] = 0

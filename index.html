@@ -24,6 +24,9 @@
     <script>
         window.onload = function() {
             console.log('JavaScript is running');
+            var originalGrid = [];
+            var progressTimer = null;
+            var POLL_INTERVAL = 100; // milliseconds
     
             window.showLoading = function(event) {
                 event.preventDefault(); // Prevent the default form submission
@@ -31,8 +34,19 @@
                 document.getElementById('solveButton').style.display = 'none';
                 document.getElementById('loading').style.display = 'block';
     
-                // Start checking for solution
+                // Capture the original grid values
+                originalGrid = [];
+                for (var i = 0; i < 9; i++) {
+                    originalGrid[i] = [];
+                    for (var j = 0; j < 9; j++) {
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        originalGrid[i][j] = parseInt(input.value) || 0;
+                    }
+                }
+
+                // Start checking for solution and progress
                 checkSolution();
+                progressTimer = setInterval(fetchProgress, POLL_INTERVAL);
     
                 // Serialize the form data
                 var form = document.querySelector('form');
@@ -70,34 +84,67 @@
             });
 
             function checkSolution() {
-                console.log('Checking for solution...');
                 fetch('/solution')
                     .then(function(response) {
-                        console.log('Received response with status:', response.status);
                         if (response.status === 200) {
                             return response.json();
                         } else {
-                            // Solution not ready, try again
-                            console.log('Solution not ready, retrying...');
-                            setTimeout(checkSolution, 1000);
+                            setTimeout(checkSolution, POLL_INTERVAL);
                             return null;
                         }
                     })
                     .then(function(data) {
                         if (data) {
-                            console.log('Solution data received:', data);
                             displaySolution(data.solution, data.original);
                         }
                     })
                     .catch(function(error) {
-                        console.error('Error fetching solution:', error);
-                        setTimeout(checkSolution, 1000);
+                        setTimeout(checkSolution, POLL_INTERVAL);
                     });
+            }
+
+            function fetchProgress() {
+                fetch('/progress')
+                    .then(function(response) {
+                        if (response.status === 200) {
+                            return response.json();
+                        }
+                        return null;
+                    })
+                    .then(function(data) {
+                        if (data) {
+                            displayProgress(data.grid);
+                        }
+                    })
+                    .catch(function(error) {
+                        // Ignore errors and try again on next interval
+                    });
+            }
+
+            function displayProgress(grid) {
+                for (var i = 0; i < 9; i++) {
+                    for (var j = 0; j < 9; j++) {
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        if (input && originalGrid.length) {
+                            input.value = grid[i][j] === 0 ? '' : grid[i][j];
+                            if (originalGrid[i][j] === 0) {
+                                input.parentElement.classList.add('solver-progress');
+                            }
+                        }
+                    }
+                }
             }
 
             function displaySolution(solution, original) {
                 console.log('Displaying solution...');
                 document.getElementById('loading').style.display = 'none';
+                if (progressTimer) {
+                    clearInterval(progressTimer);
+                }
+                var cells = document.querySelectorAll('td');
+                cells.forEach(function(td) {
+                    td.classList.remove('solver-progress');
+                });
 
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
