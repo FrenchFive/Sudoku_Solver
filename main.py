@@ -113,6 +113,31 @@ def run_server(shared_state):
                 self.send_response(200)
                 self.end_headers()
                 return
+            if self.path == '/upload_image':
+                content_length = int(self.headers['Content-Length'])
+                data = self.rfile.read(content_length)
+                content_type = self.headers.get('Content-Type', '')
+                image_bytes = data
+                if 'multipart/form-data' in content_type:
+                    boundary = content_type.split('boundary=')[-1].encode()
+                    parts = data.split(b'--' + boundary)
+                    for part in parts:
+                        if b'Content-Type:' in part:
+                            header, file_data = part.split(b"\r\n\r\n", 1)
+                            image_bytes = file_data.strip().rstrip(b'--')
+                            break
+                grid = parse_grid_from_image(image_bytes)
+                shared_state['grid'] = grid
+                save_path = os.path.join(script_dir, 'sudoku_save.txt')
+                with open(save_path, 'w') as f:
+                    for row in grid:
+                        f.write(' '.join(str(n) for n in row) + '\n')
+                shared_state['input_received'] = True
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'grid': grid}).encode('utf-8'))
+                return
 
             # Process form data
             content_length = int(self.headers['Content-Length'])
@@ -193,6 +218,29 @@ def print_grid(grid):
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
+
+def parse_grid_from_image(image_bytes):
+    """Parse a sudoku grid from an image."""
+    try:
+        from PIL import Image
+        import pytesseract
+        import io
+    except ImportError:
+        return [[0]*9 for _ in range(9)]
+
+    image = Image.open(io.BytesIO(image_bytes))
+    width, height = image.size
+    cell_w, cell_h = width // 9, height // 9
+    grid = [[0]*9 for _ in range(9)]
+    for i in range(9):
+        for j in range(9):
+            left = j * cell_w
+            top = i * cell_h
+            cell = image.crop((left, top, left + cell_w, top + cell_h))
+            text = pytesseract.image_to_string(cell, config='--psm 10 digits')
+            text = ''.join([c for c in text if c.isdigit()])
+            grid[i][j] = int(text) if text else 0
+    return grid
 
 def find_empty_cell(grid):
     for i in range(9):

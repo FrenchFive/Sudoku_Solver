@@ -36,6 +36,13 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
    Use the **Clear** button on the page to reset the grid and overwrite `sudoku_save.txt` with zeros.
    After a solution appears, click **SIMULATE** to have the solver type the grid for you. Make sure the desired window is active during the 5-second countdown.
 
+4. **Paste from Clipboard**:
+   You can grab a screenshot of a Sudoku board and paste it directly into the solver:
+   - Copy the board image to your clipboard.
+   - Click **Clipboard** on the web page.
+   - The solver attempts to read the grid from the image and fills the cells automatically.
+   This feature requires the Python packages `pillow` and `pytesseract` as well as a working Tesseract OCR installation.
+
 ---
 
 ## 📜 License
