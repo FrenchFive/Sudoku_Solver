@@ -13,6 +13,7 @@
                 {table_rows}
             </table>
             <input type="submit" value="Solve" id="solveButton">
+            <button type="button" id="clearButton">Clear</button>
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
                 <p>Solving... Please wait.</p>
@@ -61,6 +62,17 @@
                     console.error('Error submitting form:', error);
                 });
             };
+
+            document.getElementById('clearButton').addEventListener('click', function(e) {
+                e.preventDefault();
+                fetch('/clear', {method: 'POST'})
+                    .then(function() {
+                        location.reload();
+                    })
+                    .catch(function(error) {
+                        console.error('Error clearing grid:', error);
+                    });
+            });
 
             function checkSolution() {
                 console.log('Checking for solution...');

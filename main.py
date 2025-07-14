@@ -63,6 +63,19 @@ def run_server(shared_state):
                 return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
         def do_POST(self):
+            if self.path == '/clear':
+                grid = [[0] * 9 for _ in range(9)]
+                shared_state['grid'] = grid
+                shared_state['solution'] = None
+                shared_state['input_received'] = False
+                save_path = os.path.join(script_dir, 'sudoku_save.txt')
+                with open(save_path, 'w') as f:
+                    for _ in range(9):
+                        f.write('0 0 0 0 0 0 0 0 0\n')
+                self.send_response(200)
+                self.end_headers()
+                return
+
             # Process form data
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)

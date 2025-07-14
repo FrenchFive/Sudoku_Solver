@@ -125,3 +125,21 @@ input[type="text"]::placeholder {
 #solution-table td:nth-child(3n) {
     border-right: 3px solid #333;
 }
+
+#clearButton {
+    margin-left: 10px;
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    background-color: #ff6666;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+}
+
+#clearButton:hover {
+    background-color: #cc5252;
+}

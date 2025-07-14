@@ -32,6 +32,7 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
    ```
    Open the printed address in your browser, enter your puzzle and press **Solve**.
    The puzzle is saved to `sudoku_save.txt`, solved locally, and the solution is shown on the page. The solved grid is written back to `sudoku_save.txt`.
+   Use the **Clear** button on the page to reset the grid and overwrite `sudoku_save.txt` with zeros.
 
 ---
 
