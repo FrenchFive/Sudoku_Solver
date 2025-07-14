@@ -128,3 +128,17 @@ input[type="text"]::placeholder {
 .proposed {background-color: #ccc;}
 .changed {background-color: #66b3ff;}
 .removed {background-color: #ff9999;}
+
+/*
+ * Ensure cell highlight colors remain visible even when the
+ * input inside the cell has focus. Browsers often give the
+ * focused input its own background color which hides the
+ * table cell background. Making the input background
+ * transparent fixes this.
+ */
+.proposed input,
+.changed input,
+.removed input,
+.solver-filled input {
+    background-color: transparent !important;
+}
