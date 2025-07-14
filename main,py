@@ -357,23 +357,11 @@ def main():
         print("Sudoku already solved!")
         return
 
-    num_workers = min(9, multiprocessing.cpu_count(), len(empty_cells))
-    processes = []
-
-    # Start display thread
+    # Use a single-process solver for reliability
     display_thread = threading.Thread(target=display_progress, args=(progress, stop_event))
     display_thread.start()
 
-    # Start worker processes
-    for worker_id in range(num_workers):
-        initial_cell = empty_cells[worker_id]
-        p = multiprocessing.Process(target=worker, args=(
-            grid, queue, progress, worker_id, stop_event, stats, initial_cell, shared_state))
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
+    solve_sudoku(grid, queue, progress, None, stop_event, stats, shared_state)
 
     stop_event.set()
     display_thread.join()
