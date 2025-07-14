@@ -399,7 +399,7 @@ def start_simulation(shared_state):
     for r in range(9):
         for c in range(9):
             if original[r][c] == 0:
-                keyboard.write(str(solution[r][c]))
+                keyboard.press_and_release(str(solution[r][c]))
             if r == 8 and c == 8:
                 return
             if c < 8:
