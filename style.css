@@ -38,7 +38,7 @@ td {
     height: 60px;
     border: 1px solid #ddd;
     text-align: center;
-    background-color: #f9f9f9;
+    background-color: #ffffff;
 }
 
 input[type="text"] {
@@ -125,6 +125,6 @@ input[type="text"]::placeholder {
 #clearButton:hover {
     background-color: #cc5252;
 }
-.proposed {background-color: #ccc;}
+.user-input {background-color: #e0e0e0;}
 .changed {background-color: #66b3ff;}
 .removed {background-color: #ff9999;}

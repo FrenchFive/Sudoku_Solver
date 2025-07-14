@@ -7,18 +7,33 @@ import http.server
 import urllib.parse
 import json
 try:
-    from tqdm import tqdm
+    from tqdm import tqdm as _tqdm
+
+    def tqdm(*args, **kwargs):
+        """Wrapper around tqdm to show a loading bar without progress numbers."""
+        kwargs.setdefault('total', None)
+        kwargs.setdefault('bar_format', '{l_bar}{bar}| {elapsed}')
+        return _tqdm(*args, **kwargs)
 except ImportError:  # Fallback when tqdm is unavailable
     class tqdm:
-        def __init__(self, iterable=None, total=None, **kwargs):
-            self.n = 0
-            self.total = total
+        """Very small loading bar spinner used when tqdm isn't installed."""
+
+        def __init__(self, iterable=None, total=None, desc=""):
+            self.desc = desc
+            self.idx = 0
+            self.spinner = ['|', '/', '-', '\\']
+
         def update(self, n=1):
-            self.n += n
+            print(f"\r{self.desc} {self.spinner[self.idx % len(self.spinner)]}", end='', flush=True)
+            self.idx += 1
+
         def __enter__(self):
+            print(self.desc, end=' ', flush=True)
             return self
+
         def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
+            print('\r', end='', flush=True)
+            print()
 
 def run_server(shared_state):
     import http.server
@@ -259,9 +274,7 @@ def solve_sudoku_steps(grid, steps, step_file, pbar=None, stats=None):
             if stats is not None:
                 stats['trials'] += 1
             if pbar is not None:
-                filled = count_filled(grid)
-                if filled > pbar.n:
-                    pbar.update(filled - pbar.n)
+                pbar.update(1)
             snapshot = [r[:] for r in grid]
             steps.append(snapshot)
             for r in snapshot:
@@ -271,9 +284,7 @@ def solve_sudoku_steps(grid, steps, step_file, pbar=None, stats=None):
                 return True
             grid[row][col] = 0
             if pbar is not None:
-                filled = count_filled(grid)
-                if filled > pbar.n:
-                    pbar.update(filled - pbar.n)
+                pbar.update(1)
             snapshot = [r[:] for r in grid]
             steps.append(snapshot)
             for r in snapshot:
@@ -360,7 +371,7 @@ def solve_puzzle(shared_state, save_file):
     print("Solving the sudoku...")
     time_start = time.time()
 
-    with tqdm(total=81, desc="Solving") as pbar:
+    with tqdm(desc="Solving") as pbar:
         with open(steps_path, 'w') as step_file:
             solved = solve_sudoku_steps(grid, steps, step_file, pbar, stats)
 
