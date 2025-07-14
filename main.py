@@ -333,6 +333,8 @@ def solve_puzzle(shared_state, save_file):
     progress = manager.dict()
     progress['grid'] = [row[:] for row in grid]
     shared_state['progress'] = progress
+    # keep a reference to the manager so the proxy remains valid
+    shared_state['progress_manager'] = manager
     stats = manager.dict()
     stats['attempts'] = 0
     stats['backtracks'] = 0
@@ -382,8 +384,11 @@ def solve_puzzle(shared_state, save_file):
             for row in solved_grid:
                 f.write(" ".join(map(str, row)) + "\n")
         print("\nSolved grid saved to sudoku_save.txt")
+        # store final grid for progress polling after the manager shuts down
+        shared_state['progress'] = {'grid': [row[:] for row in solved_grid]}
     else:
         print("No solution exists.")
+        shared_state['progress'] = {'grid': progress.get('grid', grid)}
 
     print("\nStatistics:")
     print(f"Time taken: {elapsed_time:.2f} seconds")
@@ -393,6 +398,14 @@ def solve_puzzle(shared_state, save_file):
         print(f"Backtrack ratio: {stats['backtracks']/stats['attempts']:.2f}")
     else:
         print("No attempts were made.")
+
+    # progress manager no longer needed; replace with plain dict
+    if 'progress_manager' in shared_state:
+        mgr = shared_state.pop('progress_manager')
+        try:
+            mgr.shutdown()
+        except Exception:
+            pass
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
