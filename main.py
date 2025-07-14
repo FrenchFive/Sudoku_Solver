@@ -163,6 +163,24 @@ def find_empty_cell(grid):
                 return i, j
     return None
 
+def find_best_cell(grid):
+    best_cell = None
+    best_options = None
+    min_options = 10
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                options = get_possible_numbers(grid, i, j)
+                if len(options) < min_options:
+                    min_options = len(options)
+                    best_cell = (i, j)
+                    best_options = options
+                    if min_options == 1:
+                        return best_cell + (best_options,)
+    if best_cell is None:
+        return None
+    return best_cell + (best_options,)
+
 def is_valid(grid, row, col, num):
     # Check row
     if num in grid[row]:
@@ -210,11 +228,10 @@ def count_constraints(grid, row, col, num):
 def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=None, stats=None):
     if stop_event and stop_event.is_set():
         return False
-    empty_cell = find_empty_cell(grid)
-    if not empty_cell:
+    best = find_best_cell(grid)
+    if not best:
         return True
-    row, col = empty_cell
-    possible_numbers = get_possible_numbers(grid, row, col)
+    row, col, possible_numbers = best
     if not possible_numbers:
         if stats is not None:
             stats['backtracks'] += 1
