@@ -28,6 +28,9 @@ def run_server(shared_state):
     import urllib.parse
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Ensure static files like style.css are served correctly even when the
+    # server is launched from a different working directory.
+    os.chdir(script_dir)
 
     class SudokuHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
