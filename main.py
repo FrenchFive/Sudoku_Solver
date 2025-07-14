@@ -63,6 +63,19 @@ def run_server(shared_state):
                 return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
         def do_POST(self):
+            if self.path == '/clear':
+                grid = [[0] * 9 for _ in range(9)]
+                shared_state['grid'] = grid
+                shared_state['solution'] = None
+                shared_state['input_received'] = False
+                save_path = os.path.join(script_dir, 'sudoku_save.txt')
+                with open(save_path, 'w') as f:
+                    for _ in range(9):
+                        f.write('0 0 0 0 0 0 0 0 0\n')
+                self.send_response(200)
+                self.end_headers()
+                return
+
             # Process form data
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -313,6 +326,11 @@ def main():
     with open(save_file, 'w') as f:
         for row in grid:
             f.write(' '.join(map(str, row)) + '\n')
+    # Reload puzzle from file for offline solving
+    with open(save_file, "r") as f:
+        lines = [line.strip() for line in f.readlines() if line.strip()]
+    grid = [[int(x) for x in line.split()] for line in lines]
+    shared_state["grid"] = [row[:] for row in grid]
 
     clear_screen()
     print("Solving the sudoku...")
@@ -371,6 +389,10 @@ def main():
         print_grid(solved_grid)
         # Update shared_state with the solution
         shared_state['solution'] = solved_grid
+        with open(save_file, "w") as f:
+            for row in solved_grid:
+                f.write(" ".join(map(str, row)) + "\n")
+        print("\nSolved grid saved to sudoku_save.txt")
     else:
         print("No solution exists.")
 
