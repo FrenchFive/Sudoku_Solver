@@ -26,12 +26,12 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
 
 ## 🔧 Usage
 
-1. Place your Sudoku puzzle in `sudoku_save.txt` using spaces to separate numbers and `0` for empty cells.
-2. Solve the puzzle locally:
+1. Run the solver:
    ```bash
    python main.py
    ```
-   The solved grid is written back to `sudoku_save.txt`.
+   Open the printed address in your browser, enter your puzzle and press **Solve**.
+   The puzzle is saved to `sudoku_save.txt`, solved locally, and the solution is shown on the page. The solved grid is written back to `sudoku_save.txt`.
 
 ---
 

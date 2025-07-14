@@ -3,6 +3,132 @@ import time
 import multiprocessing
 from multiprocessing import Manager
 import threading
+import http.server
+import urllib.parse
+import json
+
+def run_server(shared_state):
+    import http.server
+    import os
+    import threading
+    import json
+    import urllib.parse
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    class SudokuHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/' or self.path == '/index.html':
+                # Read index.html
+                index_path = os.path.join(script_dir, 'index.html')
+                try:
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                except FileNotFoundError:
+                    self.send_error(404, "File not found.")
+                    return
+                # Generate table rows
+                table_rows = ''
+                grid = shared_state['grid']
+                for i in range(9):
+                    table_rows += '<tr>'
+                    for j in range(9):
+                        value = grid[i][j] if grid[i][j] != 0 else ''
+                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                    table_rows += '</tr>'
+                # Replace placeholder
+                html = html.replace('{table_rows}', table_rows)
+                # Send response
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(html.encode('utf-8'))
+            elif self.path == '/solution':
+                if shared_state.get('solution', None):
+                    # Send solution as JSON
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {
+                        'solution': shared_state['solution'],
+                        'original': shared_state['grid']
+                    }
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+                else:
+                    # Solution not ready
+                    self.send_response(204)  # No Content
+                    self.end_headers()
+            else:
+                # Serve static files
+                return http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+        def do_POST(self):
+            # Process form data
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            # Parse form data
+            parsed_data = urllib.parse.parse_qs(post_data.decode('utf-8'))
+            # Update grid
+            grid = [[0]*9 for _ in range(9)]
+            for i in range(9):
+                for j in range(9):
+                    cell_name = 'cell_{}_{}'.format(i, j)
+                    value = parsed_data.get(cell_name, [''])[0]
+                    try:
+                        num = int(value)
+                        if 1 <= num <= 9:
+                            grid[i][j] = num
+                        else:
+                            grid[i][j] = 0
+                    except ValueError:
+                        grid[i][j] = 0
+            # Save grid to shared_state
+            shared_state['grid'] = grid
+            shared_state['input_received'] = True
+            # Send response
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            # Read index.html
+            index_path = os.path.join(script_dir, 'index.html')
+            try:
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    html = f.read()
+            except FileNotFoundError:
+                    self.send_error(404, "File not found.")
+                    return
+            # Generate table rows
+            table_rows = ''
+            for i in range(9):
+                table_rows += '<tr>'
+                for j in range(9):
+                    value = grid[i][j] if grid[i][j] != 0 else ''
+                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                table_rows += '</tr>'
+            # Replace placeholder
+            html = html.replace('{table_rows}', table_rows)
+            # Send response
+            self.wfile.write(html.encode('utf-8'))
+
+    # Try to find an available port
+    for port in range(8000, 9000):
+        try:
+            server_address = ('', port)
+            httpd = http.server.HTTPServer(server_address, SudokuHTTPRequestHandler)
+            shared_state['port'] = port
+            break
+        except OSError as e:
+            if e.errno == 98:  # Address already in use
+                continue
+            else:
+                raise
+    else:
+        print("No available port found between 8000 and 9000.")
+        shared_state['server_failed'] = True
+        return
+
+    # Run the server
+    httpd.serve_forever()
 
 def print_grid(grid):
     for i in range(9):
@@ -141,28 +267,60 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     save_file = os.path.join(script_dir, "sudoku_save.txt")
 
-    if not os.path.exists(save_file):
-        print(f"Puzzle file '{save_file}' not found.")
+    manager = multiprocessing.Manager()
+    shared_state = manager.dict()
+    shared_state['grid'] = [[0]*9 for _ in range(9)]
+    shared_state['solution'] = None
+    shared_state['input_received'] = False
+    shared_state['server_failed'] = False
+    shared_state['port'] = None
+
+    # Try to load saved grid
+    if os.path.exists(save_file):
+        with open(save_file, 'r') as f:
+            lines = f.readlines()
+            if len(lines) == 9:
+                grid = [[0]*9 for _ in range(9)]
+                for i in range(9):
+                    row_values = list(map(int, lines[i].strip().split()))
+                    if len(row_values) == 9:
+                        grid[i] = row_values
+                shared_state['grid'] = grid
+
+    # Start the server process
+    server_process = multiprocessing.Process(target=run_server, args=(shared_state,))
+    server_process.start()
+
+    # Wait for the server to set the port or fail
+    while shared_state['port'] is None and not shared_state['server_failed']:
+        time.sleep(0.1)
+
+    if shared_state['server_failed']:
+        print("Failed to start the server. Exiting.")
+        server_process.terminate()
+        server_process.join()
         return
 
-    with open(save_file, 'r') as f:
+    port = shared_state['port']
+    print(f"Please open your web browser and go to http://localhost:{port} to enter the Sudoku.")
+
+    # Wait until input is received
+    while not shared_state.get('input_received', False):
+        time.sleep(0.1)
+
+    grid = shared_state['grid']
+    # Save grid to file
+    with open(save_file, 'w') as f:
+        for row in grid:
+            f.write(' '.join(map(str, row)) + '\n')
+    # Reload puzzle from file for offline solving
+    with open(save_file, "r") as f:
         lines = [line.strip() for line in f.readlines() if line.strip()]
-
-    if len(lines) != 9:
-        print("Puzzle file must contain 9 lines of numbers.")
-        return
-
-    grid = []
-    for line in lines:
-        parts = line.split()
-        if len(parts) != 9:
-            print("Each line must contain 9 numbers.")
-            return
-        grid.append([int(x) for x in parts])
+    grid = [[int(x) for x in line.split()] for line in lines]
+    shared_state["grid"] = [row[:] for row in grid]
 
     clear_screen()
-    print("Initial Sudoku:")
-    print_grid(grid)
+    print("Solving the sudoku...")
     time.sleep(1)
     start_time = time.time()
 
@@ -216,9 +374,12 @@ def main():
         solved_grid = queue.get()
         print("Sudoku solved:")
         print_grid(solved_grid)
-        with open(save_file, 'w') as f:
+        # Update shared_state with the solution
+        shared_state['solution'] = solved_grid
+        with open(save_file, "w") as f:
             for row in solved_grid:
-                f.write(' '.join(map(str, row)) + '\n')
+                f.write(" ".join(map(str, row)) + "\n")
+        print("\nSolved grid saved to sudoku_save.txt")
     else:
         print("No solution exists.")
 
@@ -232,7 +393,17 @@ def main():
     else:
         print("No attempts were made.")
 
-    print("\nSolved grid saved to sudoku_save.txt")
+    # Keep the server running to serve the solution
+    print("Solution ready. You can view it in your browser.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server_process.terminate()
+        server_process.join()
+        print("Server stopped.")
 
 if __name__ == "__main__":
     main()
