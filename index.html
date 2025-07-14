@@ -95,31 +95,51 @@
                     });
             }
 
-            function applyGrid(grid, original){
+            function applyGrid(grid, prev, original, highlight){
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
-                        if (input) {
-                            input.value = grid[i][j] || '';
-                            if(original && original[i][j] === 0 && grid[i][j]){
-                                input.parentElement.classList.add('solver-filled');
+                        if (!input) continue;
+                        var cell = input.parentElement;
+                        cell.classList.remove('proposed','changed','removed');
+                        var val = grid[i][j] || '';
+                        input.value = val;
+                        if(highlight && prev){
+                            var prevVal = prev[i][j] || 0;
+                            if(val === ''){
+                                if(prevVal !== 0){
+                                    cell.classList.add('removed');
+                                }
+                            } else {
+                                if(prevVal === 0){
+                                    cell.classList.add('proposed');
+                                } else if(prevVal !== grid[i][j]){
+                                    cell.classList.add('changed');
+                                } else {
+                                    cell.classList.add('proposed');
+                                }
                             }
+                        }
+                        if(original && original[i][j] === 0 && grid[i][j]){
+                            cell.classList.add('solver-filled');
                         }
                     }
                 }
             }
 
-            function animateSteps(steps, callback) {
-                if (!steps || steps.length === 0) { callback(); return; }
+            function animateSteps(steps, original, callback) {
+                if (!steps || steps.length === 0) { callback(original); return; }
                 var index = 0;
                 var delay = 5000 / steps.length;
+                var prev = original;
                 function next() {
                     if (index < steps.length) {
-                        applyGrid(steps[index]);
+                        applyGrid(steps[index], prev, null, true);
+                        prev = steps[index];
                         index++;
                         setTimeout(next, delay);
                     } else {
-                        callback();
+                        callback(prev);
                     }
                 }
                 next();
@@ -128,8 +148,8 @@
             function displaySolution(solution, original, steps) {
                 console.log('Displaying solution...');
                 document.getElementById('loading').style.display = 'none';
-                animateSteps(steps, function(){
-                    applyGrid(solution, original);
+                animateSteps(steps, original, function(last){
+                    applyGrid(solution, last, original, false);
                     var inputs = document.querySelectorAll('input[type="text"]');
                     inputs.forEach(function(inp){ inp.disabled = true; });
                 });

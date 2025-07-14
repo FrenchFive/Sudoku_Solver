@@ -125,3 +125,6 @@ input[type="text"]::placeholder {
 #clearButton:hover {
     background-color: #cc5252;
 }
+.proposed {background-color: #ccc;}
+.changed {background-color: #66b3ff;}
+.removed {background-color: #ff9999;}

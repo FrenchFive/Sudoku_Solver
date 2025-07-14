@@ -6,6 +6,19 @@ import threading
 import http.server
 import urllib.parse
 import json
+try:
+    from tqdm import tqdm
+except ImportError:  # Fallback when tqdm is unavailable
+    class tqdm:
+        def __init__(self, iterable=None, total=None, **kwargs):
+            self.n = 0
+            self.total = total
+        def update(self, n=1):
+            self.n += n
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
 
 def run_server(shared_state):
     import http.server
@@ -230,7 +243,10 @@ def count_constraints(grid, row, col, num):
                 count += 1
     return count
 
-def solve_sudoku_steps(grid, steps, step_file):
+def count_filled(grid):
+    return sum(1 for r in grid for c in r if c != 0)
+
+def solve_sudoku_steps(grid, steps, step_file, pbar=None, stats=None):
     """Recursively solve sudoku while recording each step."""
     best = find_best_cell(grid)
     if not best:
@@ -240,14 +256,24 @@ def solve_sudoku_steps(grid, steps, step_file):
     for num in possible_numbers:
         if is_valid(grid, row, col, num):
             grid[row][col] = num
+            if stats is not None:
+                stats['trials'] += 1
+            if pbar is not None:
+                filled = count_filled(grid)
+                if filled > pbar.n:
+                    pbar.update(filled - pbar.n)
             snapshot = [r[:] for r in grid]
             steps.append(snapshot)
             for r in snapshot:
                 step_file.write(" ".join(map(str, r)) + "\n")
             step_file.write("\n")
-            if solve_sudoku_steps(grid, steps, step_file):
+            if solve_sudoku_steps(grid, steps, step_file, pbar, stats):
                 return True
             grid[row][col] = 0
+            if pbar is not None:
+                filled = count_filled(grid)
+                if filled > pbar.n:
+                    pbar.update(filled - pbar.n)
             snapshot = [r[:] for r in grid]
             steps.append(snapshot)
             for r in snapshot:
@@ -328,13 +354,15 @@ def solve_puzzle(shared_state, save_file):
     grid = [row[:] for row in shared_state['grid']]
     steps = []
     steps_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sudoku_steps.txt')
+    stats = {'trials': 0}
 
     clear_screen()
     print("Solving the sudoku...")
     time_start = time.time()
 
-    with open(steps_path, 'w') as step_file:
-        solved = solve_sudoku_steps(grid, steps, step_file)
+    with tqdm(total=81, desc="Solving") as pbar:
+        with open(steps_path, 'w') as step_file:
+            solved = solve_sudoku_steps(grid, steps, step_file, pbar, stats)
 
     elapsed_time = time.time() - time_start
 
@@ -343,7 +371,7 @@ def solve_puzzle(shared_state, save_file):
         with open(save_file, 'w') as f:
             for row in grid:
                 f.write(" ".join(map(str, row)) + "\n")
-        print("Sudoku solved in {:.2f} seconds".format(elapsed_time))
+        print("Sudoku solved in {:.2f} seconds after {} trials".format(elapsed_time, stats['trials']))
     else:
         shared_state['solution'] = None
         print("No solution exists.")
