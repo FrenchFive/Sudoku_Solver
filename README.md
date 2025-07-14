@@ -9,6 +9,7 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
 - 🚀 **Brute-Force Algorithm**: Systematically solves Sudoku puzzles by exploring all valid possibilities.
 - 📋 **Flexible Input**: Easily input puzzles in a standard 9x9 grid format.
 - ⚡ **Efficient Execution**: Optimized for quick solutions to standard Sudoku grids.
+- 🎹 **Simulation Mode**: Automatically types the solved grid into any active window using the Python `keyboard` module.
 
 ---
 
@@ -33,6 +34,7 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
    Open the printed address in your browser, enter your puzzle and press **Solve**.
    The puzzle is saved to `sudoku_save.txt`, solved locally, and the solution is shown on the page. The solved grid is written back to `sudoku_save.txt`.
    Use the **Clear** button on the page to reset the grid and overwrite `sudoku_save.txt` with zeros.
+   After a solution appears, click **SIMULATE** to have the solver type the grid for you. Make sure the desired window is active during the 5-second countdown.
 
 ---
 

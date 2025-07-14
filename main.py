@@ -92,6 +92,11 @@ def run_server(shared_state):
                 return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
         def do_POST(self):
+            if self.path == '/simulate':
+                threading.Thread(target=start_simulation, args=(shared_state,), daemon=True).start()
+                self.send_response(200)
+                self.end_headers()
+                return
             if self.path == '/clear':
                 grid = [[0] * 9 for _ in range(9)]
                 shared_state['grid'] = grid
@@ -388,6 +393,32 @@ def solve_puzzle(shared_state, save_file):
         print("No solution exists.")
 
     shared_state['steps'] = steps
+
+def start_simulation(shared_state):
+    """Use the keyboard module to type the solution in the active window."""
+    solution = shared_state.get('solution')
+    original = shared_state.get('grid')
+    if not solution:
+        print("No solution available for simulation.")
+        return
+    try:
+        import keyboard
+    except ImportError:
+        print("The 'keyboard' module is required for simulation.")
+        return
+
+    for r in range(9):
+        for c in range(9):
+            if original[r][c] == 0:
+                keyboard.press_and_release(str(solution[r][c]))
+            if r == 8 and c == 8:
+                return
+            if c < 8:
+                keyboard.press_and_release('right')
+            else:
+                keyboard.press_and_release('down')
+                for _ in range(8):
+                    keyboard.press_and_release('left')
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
