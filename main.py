@@ -34,7 +34,7 @@ def run_server(shared_state):
                     table_rows += '<tr>'
                     for j in range(9):
                         value = grid[i][j] if grid[i][j] != 0 else ''
-                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></td>'.format(i, j, value)
                     table_rows += '</tr>'
                 # Replace placeholder
                 html = html.replace('{table_rows}', table_rows)
@@ -116,7 +116,7 @@ def run_server(shared_state):
                 table_rows += '<tr>'
                 for j in range(9):
                     value = grid[i][j] if grid[i][j] != 0 else ''
-                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></td>'.format(i, j, value)
                 table_rows += '</tr>'
             # Replace placeholder
             html = html.replace('{table_rows}', table_rows)
@@ -276,6 +276,87 @@ def display_progress(progress, stop_event):
     else:
         print("No solution found.")
 
+def solve_puzzle(shared_state, save_file):
+    """Solve the sudoku in shared_state and store the solution."""
+    grid = shared_state['grid']
+    with open(save_file, 'w') as f:
+        for row in grid:
+            f.write(' '.join(map(str, row)) + '\n')
+    with open(save_file, "r") as f:
+        lines = [line.strip() for line in f.readlines() if line.strip()]
+    grid = [[int(x) for x in line.split()] for line in lines]
+    shared_state["grid"] = [row[:] for row in grid]
+
+    clear_screen()
+    print("Solving the sudoku...")
+    time.sleep(1)
+    start_time = time.time()
+
+    manager = Manager()
+    queue = manager.Queue()
+    progress = manager.dict()
+    progress['grid'] = [row[:] for row in grid]
+    stats = manager.dict()
+    stats['attempts'] = 0
+    stats['backtracks'] = 0
+    stop_event = multiprocessing.Event()
+
+    empty_cells = []
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                possible_numbers = get_possible_numbers(grid, i, j)
+                empty_cells.append((i, j, possible_numbers))
+    empty_cells.sort(key=lambda x: len(x[2]))
+    if not empty_cells:
+        print("Sudoku already solved!")
+        shared_state['solution'] = grid
+        return
+
+    num_workers = min(9, multiprocessing.cpu_count(), len(empty_cells))
+    processes = []
+
+    display_thread = threading.Thread(target=display_progress, args=(progress, stop_event))
+    display_thread.start()
+
+    for worker_id in range(num_workers):
+        initial_cell = empty_cells[worker_id]
+        p = multiprocessing.Process(target=worker, args=(
+            grid, queue, progress, worker_id, stop_event, stats, initial_cell))
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
+
+    stop_event.set()
+    display_thread.join()
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    clear_screen()
+    if not queue.empty():
+        solved_grid = queue.get()
+        print("Sudoku solved:")
+        print_grid(solved_grid)
+        shared_state['solution'] = solved_grid
+        with open(save_file, "w") as f:
+            for row in solved_grid:
+                f.write(" ".join(map(str, row)) + "\n")
+        print("\nSolved grid saved to sudoku_save.txt")
+    else:
+        print("No solution exists.")
+
+    print("\nStatistics:")
+    print(f"Time taken: {elapsed_time:.2f} seconds")
+    print(f"Total attempts: {stats['attempts']}")
+    print(f"Total backtracks: {stats['backtracks']}")
+    if stats['attempts'] > 0:
+        print(f"Backtrack ratio: {stats['backtracks']/stats['attempts']:.2f}")
+    else:
+        print("No attempts were made.")
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     save_file = os.path.join(script_dir, "sudoku_save.txt")
@@ -317,100 +398,14 @@ def main():
     port = shared_state['port']
     print(f"Please open your web browser and go to http://localhost:{port} to enter the Sudoku.")
 
-    # Wait until input is received
-    while not shared_state.get('input_received', False):
-        time.sleep(0.1)
-
-    grid = shared_state['grid']
-    # Save grid to file
-    with open(save_file, 'w') as f:
-        for row in grid:
-            f.write(' '.join(map(str, row)) + '\n')
-    # Reload puzzle from file for offline solving
-    with open(save_file, "r") as f:
-        lines = [line.strip() for line in f.readlines() if line.strip()]
-    grid = [[int(x) for x in line.split()] for line in lines]
-    shared_state["grid"] = [row[:] for row in grid]
-
-    clear_screen()
-    print("Solving the sudoku...")
-    time.sleep(1)
-    start_time = time.time()
-
-    manager = Manager()
-    queue = manager.Queue()
-    progress = manager.dict()
-    progress['grid'] = [row[:] for row in grid]
-    stats = manager.dict()
-    stats['attempts'] = 0
-    stats['backtracks'] = 0
-    stop_event = multiprocessing.Event()
-
-    # Preprocessing: Find cells with the least possibilities
-    empty_cells = []
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                possible_numbers = get_possible_numbers(grid, i, j)
-                empty_cells.append((i, j, possible_numbers))
-    empty_cells.sort(key=lambda x: len(x[2]))
-    if not empty_cells:
-        print("Sudoku already solved!")
-        return
-
-    num_workers = min(9, multiprocessing.cpu_count(), len(empty_cells))
-    processes = []
-
-    # Start display thread
-    display_thread = threading.Thread(target=display_progress, args=(progress, stop_event))
-    display_thread.start()
-
-    # Start worker processes
-    for worker_id in range(num_workers):
-        initial_cell = empty_cells[worker_id]
-        p = multiprocessing.Process(target=worker, args=(
-            grid, queue, progress, worker_id, stop_event, stats, initial_cell))
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
-
-    stop_event.set()
-    display_thread.join()
-
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-
-    clear_screen()
-    if not queue.empty():
-        solved_grid = queue.get()
-        print("Sudoku solved:")
-        print_grid(solved_grid)
-        # Update shared_state with the solution
-        shared_state['solution'] = solved_grid
-        with open(save_file, "w") as f:
-            for row in solved_grid:
-                f.write(" ".join(map(str, row)) + "\n")
-        print("\nSolved grid saved to sudoku_save.txt")
-    else:
-        print("No solution exists.")
-
-    # Display statistics
-    print("\nStatistics:")
-    print(f"Time taken: {elapsed_time:.2f} seconds")
-    print(f"Total attempts: {stats['attempts']}")
-    print(f"Total backtracks: {stats['backtracks']}")
-    if stats['attempts'] > 0:
-        print(f"Backtrack ratio: {stats['backtracks']/stats['attempts']:.2f}")
-    else:
-        print("No attempts were made.")
-
-    # Keep the server running to serve the solution
-    print("Solution ready. You can view it in your browser.")
     try:
         while True:
-            time.sleep(1)
+            while not shared_state.get('input_received', False):
+                time.sleep(0.1)
+            shared_state['solution'] = None
+            solve_puzzle(shared_state, save_file)
+            shared_state['input_received'] = False
+            print("Solution ready. You can view it in your browser.")
     except KeyboardInterrupt:
         pass
     finally:

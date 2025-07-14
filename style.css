@@ -106,25 +106,6 @@ input[type="text"]::placeholder {
     margin-top: 20px;
 }
 
-#solution-container {
-    margin-top: 20px;
-}
-
-#solution-table td {
-    width: 60px;
-    height: 60px;
-    border: 1px solid #ddd;
-    text-align: center;
-    font-size: 1.5rem;
-}
-
-#solution-table tr:nth-child(3n) td {
-    border-bottom: 3px solid #333;
-}
-
-#solution-table td:nth-child(3n) {
-    border-right: 3px solid #333;
-}
 
 #clearButton {
     margin-left: 10px;
