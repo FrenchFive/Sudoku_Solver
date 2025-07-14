@@ -112,6 +112,7 @@ input[type="text"]::placeholder {
     padding: 12px 24px;
     font-size: 1.2rem;
     font-weight: bold;
+    display: inline-block;
     background-color: #ff6666;
     color: white;
     border: none;
@@ -124,3 +125,6 @@ input[type="text"]::placeholder {
 #clearButton:hover {
     background-color: #cc5252;
 }
+.proposed {background-color: #ccc;}
+.changed {background-color: #66b3ff;}
+.removed {background-color: #ff9999;}
