@@ -14,6 +14,7 @@
             </table>
             <input type="submit" value="Solve" id="solveButton">
             <button type="button" id="clearButton">Clear</button>
+            <button type="button" id="clipboardButton">Clipboard</button>
             <button type="button" id="simulateButton" style="display:none;">SIMULATE</button>
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
@@ -171,6 +172,34 @@
                         button.disabled = false;
                     }
                 },1000);
+            });
+
+            document.getElementById('clipboardButton').addEventListener('click', async function(){
+                try {
+                    const items = await navigator.clipboard.read();
+                    for (const item of items) {
+                        for (const type of item.types) {
+                            if (type.startsWith('image/')) {
+                                const blob = await item.getType(type);
+                                const formData = new FormData();
+                                formData.append('image', blob, 'clipboard.png');
+                                const response = await fetch('/upload_image', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                if(response.ok){
+                                    const data = await response.json();
+                                    applyGrid(data.grid, null, null, false);
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    alert('No image found in clipboard.');
+                } catch(err){
+                    console.error('Clipboard error', err);
+                    alert('Failed to read clipboard image.');
+                }
             });
 
             document.addEventListener("keydown", function(e) {
