@@ -24,6 +24,15 @@ Welcome to **Sudoku Solver**, a Python-based tool designed to solve Sudoku puzzl
    ```
 3. **Install Python**: Ensure Python 3.x is installed. Download it from the [official Python website](https://www.python.org/downloads/).
 
+## 🔧 Usage
+
+1. Place your Sudoku puzzle in `sudoku_save.txt` using spaces to separate numbers and `0` for empty cells.
+2. Solve the puzzle locally:
+   ```bash
+   python main.py
+   ```
+   The solved grid is written back to `sudoku_save.txt`.
+
 ---
 
 ## 📜 License
