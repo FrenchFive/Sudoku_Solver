@@ -86,7 +86,7 @@
                     .then(function(data) {
                         if (data) {
                             console.log('Solution data received:', data);
-                            displaySolution(data.solution, data.original);
+                            displaySolution(data.solution, data.original, data.steps);
                         }
                     })
                     .catch(function(error) {
@@ -95,22 +95,44 @@
                     });
             }
 
-            function displaySolution(solution, original) {
-                console.log('Displaying solution...');
-                document.getElementById('loading').style.display = 'none';
-
+            function applyGrid(grid, original){
                 for (var i = 0; i < 9; i++) {
                     for (var j = 0; j < 9; j++) {
                         var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
                         if (input) {
-                            input.value = solution[i][j];
-                            input.disabled = true;
-                            if (original[i][j] === 0) {
+                            input.value = grid[i][j] || '';
+                            if(original && original[i][j] === 0 && grid[i][j]){
                                 input.parentElement.classList.add('solver-filled');
                             }
                         }
                     }
                 }
+            }
+
+            function animateSteps(steps, callback) {
+                if (!steps || steps.length === 0) { callback(); return; }
+                var index = 0;
+                var delay = 5000 / steps.length;
+                function next() {
+                    if (index < steps.length) {
+                        applyGrid(steps[index]);
+                        index++;
+                        setTimeout(next, delay);
+                    } else {
+                        callback();
+                    }
+                }
+                next();
+            }
+
+            function displaySolution(solution, original, steps) {
+                console.log('Displaying solution...');
+                document.getElementById('loading').style.display = 'none';
+                animateSteps(steps, function(){
+                    applyGrid(solution, original);
+                    var inputs = document.querySelectorAll('input[type="text"]');
+                    inputs.forEach(function(inp){ inp.disabled = true; });
+                });
             }
 
             document.addEventListener("keydown", function(e) {
