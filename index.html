@@ -7,7 +7,7 @@
 <body>
     <div class="container">
         <h1>Enter Sudoku</h1>
-        <form method="POST" action="/" onsubmit="showLoading(event);">
+        <form method="POST" action="/" onsubmit="showLoading(event);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <table>
                 <!-- Python script dynamically fills the rows and cells -->
                 {table_rows}
@@ -19,12 +19,7 @@
                 <p>Solving... Please wait.</p>
             </div>
         </form>
-        <div id="solution-container" style="display: none;">
-            <h2>Solution:</h2>
-            <table id="solution-table">
-                <!-- Solution will be inserted here -->
-            </table>
-        </div>
+        <!-- Solution will be shown directly in the grid -->
     </div>
     <script>
         window.onload = function() {
@@ -103,22 +98,18 @@
             function displaySolution(solution, original) {
                 console.log('Displaying solution...');
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('solution-container').style.display = 'block';
-
-                var table = document.getElementById('solution-table');
-                table.innerHTML = '';
 
                 for (var i = 0; i < 9; i++) {
-                    var row = document.createElement('tr');
                     for (var j = 0; j < 9; j++) {
-                        var cell = document.createElement('td');
-                        cell.textContent = solution[i][j];
-                        if (original[i][j] === 0) {
-                            cell.classList.add('solver-filled');
+                        var input = document.querySelector('input[name="cell_' + i + '_' + j + '"]');
+                        if (input) {
+                            input.value = solution[i][j];
+                            input.disabled = true;
+                            if (original[i][j] === 0) {
+                                input.parentElement.classList.add('solver-filled');
+                            }
                         }
-                        row.appendChild(cell);
                     }
-                    table.appendChild(row);
                 }
             }
 

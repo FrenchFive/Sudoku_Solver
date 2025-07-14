@@ -34,7 +34,7 @@ def run_server(shared_state):
                     table_rows += '<tr>'
                     for j in range(9):
                         value = grid[i][j] if grid[i][j] != 0 else ''
-                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                        table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></td>'.format(i, j, value)
                     table_rows += '</tr>'
                 # Replace placeholder
                 html = html.replace('{table_rows}', table_rows)
@@ -116,7 +116,7 @@ def run_server(shared_state):
                 table_rows += '<tr>'
                 for j in range(9):
                     value = grid[i][j] if grid[i][j] != 0 else ''
-                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1"></td>'.format(i, j, value)
+                    table_rows += '<td><input type="text" name="cell_{}_{}" value="{}" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></td>'.format(i, j, value)
                 table_rows += '</tr>'
             # Replace placeholder
             html = html.replace('{table_rows}', table_rows)
