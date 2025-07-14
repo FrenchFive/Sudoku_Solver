@@ -158,51 +158,6 @@
                 });
             }
 
-            function sendKey(elem, key){
-                var evt = new KeyboardEvent('keydown', {key: key, bubbles: true});
-                elem.dispatchEvent(evt);
-            }
-
-            function simulateTyping(){
-                if(!window.solutionData) return;
-                var button = document.getElementById('simulateButton');
-                var sol = window.solutionData.solution;
-                var orig = window.solutionData.original;
-                var inputs = document.querySelectorAll('input[type="text"]');
-                inputs.forEach(function(inp){ inp.disabled = false; });
-                for(var r=0;r<9;r++){
-                    for(var c=0;c<9;c++){
-                        var inp = document.querySelector('input[name="cell_'+r+'_'+c+'"]');
-                        if(orig[r][c] === 0){ inp.value = ''; }
-                        else{ inp.value = orig[r][c] || ''; }
-                    }
-                }
-                var r=0,c=0;
-                var delay=0;
-                function step(){
-                    var inp = document.querySelector('input[name="cell_'+r+'_'+c+'"]');
-                    inp.focus();
-                    if(orig[r][c] === 0){
-                        sendKey(inp, String(sol[r][c]));
-                    }
-                    if(r===8 && c===8){
-                        button.disabled = false;
-                        return;
-                    }
-                    if(c < 8){
-                        sendKey(inp,'ArrowRight');
-                        c++;
-                    } else {
-                        sendKey(inp,'ArrowDown');
-                        r++;
-                        for(var k=0;k<8;k++){ sendKey(document.activeElement,'ArrowLeft'); }
-                        c=0;
-                    }
-                    setTimeout(step, 100);
-                }
-                step();
-            }
-
             document.getElementById('simulateButton').addEventListener('click', function(){
                 var button = this;
                 var count = 5;
@@ -213,7 +168,8 @@
                     if(count < 0){
                         clearInterval(interval);
                         button.textContent = 'SIMULATE';
-                        simulateTyping();
+                        fetch('/simulate', {method:'POST'});
+                        button.disabled = false;
                     }
                 },1000);
             });
