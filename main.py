@@ -6,6 +6,19 @@ import threading
 import http.server
 import urllib.parse
 import json
+try:
+    from tqdm import tqdm
+except ImportError:  # Fallback when tqdm is unavailable
+    class tqdm:
+        def __init__(self, iterable=None, total=None, **kwargs):
+            self.n = 0
+            self.total = total
+        def update(self, n=1):
+            self.n += n
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
 
 def run_server(shared_state):
     import http.server
@@ -51,7 +64,8 @@ def run_server(shared_state):
                     self.end_headers()
                     response = {
                         'solution': shared_state['solution'],
-                        'original': shared_state['grid']
+                        'original': shared_state['grid'],
+                        'steps': shared_state.get('steps', [])
                     }
                     self.wfile.write(json.dumps(response).encode('utf-8'))
                 else:
@@ -68,10 +82,14 @@ def run_server(shared_state):
                 shared_state['grid'] = grid
                 shared_state['solution'] = None
                 shared_state['input_received'] = False
+                shared_state['steps'] = []
                 save_path = os.path.join(script_dir, 'sudoku_save.txt')
                 with open(save_path, 'w') as f:
                     for _ in range(9):
                         f.write('0 0 0 0 0 0 0 0 0\n')
+                steps_path = os.path.join(script_dir, 'sudoku_steps.txt')
+                with open(steps_path, 'w') as f:
+                    pass
                 self.send_response(200)
                 self.end_headers()
                 return
@@ -225,6 +243,44 @@ def count_constraints(grid, row, col, num):
                 count += 1
     return count
 
+def count_filled(grid):
+    return sum(1 for r in grid for c in r if c != 0)
+
+def solve_sudoku_steps(grid, steps, step_file, pbar=None, stats=None):
+    """Recursively solve sudoku while recording each step."""
+    best = find_best_cell(grid)
+    if not best:
+        return True
+    row, col, possible_numbers = best
+    possible_numbers = sorted(possible_numbers, key=lambda n: count_constraints(grid, row, col, n))
+    for num in possible_numbers:
+        if is_valid(grid, row, col, num):
+            grid[row][col] = num
+            if stats is not None:
+                stats['trials'] += 1
+            if pbar is not None:
+                filled = count_filled(grid)
+                if filled > pbar.n:
+                    pbar.update(filled - pbar.n)
+            snapshot = [r[:] for r in grid]
+            steps.append(snapshot)
+            for r in snapshot:
+                step_file.write(" ".join(map(str, r)) + "\n")
+            step_file.write("\n")
+            if solve_sudoku_steps(grid, steps, step_file, pbar, stats):
+                return True
+            grid[row][col] = 0
+            if pbar is not None:
+                filled = count_filled(grid)
+                if filled > pbar.n:
+                    pbar.update(filled - pbar.n)
+            snapshot = [r[:] for r in grid]
+            steps.append(snapshot)
+            for r in snapshot:
+                step_file.write(" ".join(map(str, r)) + "\n")
+            step_file.write("\n")
+    return False
+
 def solve_sudoku(grid, queue=None, progress=None, worker_id=None, stop_event=None, stats=None):
     if stop_event and stop_event.is_set():
         return False
@@ -294,85 +350,33 @@ def display_progress(progress, stop_event):
         print("No solution found.")
 
 def solve_puzzle(shared_state, save_file):
-    """Solve the sudoku in shared_state and store the solution."""
-    grid = shared_state['grid']
-    with open(save_file, 'w') as f:
-        for row in grid:
-            f.write(' '.join(map(str, row)) + '\n')
-    with open(save_file, "r") as f:
-        lines = [line.strip() for line in f.readlines() if line.strip()]
-    grid = [[int(x) for x in line.split()] for line in lines]
-    shared_state["grid"] = [row[:] for row in grid]
+    """Solve the sudoku in shared_state and store the solution with step tracing."""
+    grid = [row[:] for row in shared_state['grid']]
+    steps = []
+    steps_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sudoku_steps.txt')
+    stats = {'trials': 0}
 
     clear_screen()
     print("Solving the sudoku...")
-    time.sleep(1)
-    start_time = time.time()
+    time_start = time.time()
 
-    manager = Manager()
-    queue = manager.Queue()
-    progress = manager.dict()
-    progress['grid'] = [row[:] for row in grid]
-    stats = manager.dict()
-    stats['attempts'] = 0
-    stats['backtracks'] = 0
-    stop_event = multiprocessing.Event()
+    with tqdm(total=81, desc="Solving") as pbar:
+        with open(steps_path, 'w') as step_file:
+            solved = solve_sudoku_steps(grid, steps, step_file, pbar, stats)
 
-    empty_cells = []
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                possible_numbers = get_possible_numbers(grid, i, j)
-                empty_cells.append((i, j, possible_numbers))
-    empty_cells.sort(key=lambda x: len(x[2]))
-    if not empty_cells:
-        print("Sudoku already solved!")
+    elapsed_time = time.time() - time_start
+
+    if solved:
         shared_state['solution'] = grid
-        return
-
-    num_workers = min(9, multiprocessing.cpu_count(), len(empty_cells))
-    processes = []
-
-    display_thread = threading.Thread(target=display_progress, args=(progress, stop_event))
-    display_thread.start()
-
-    for worker_id in range(num_workers):
-        initial_cell = empty_cells[worker_id]
-        p = multiprocessing.Process(target=worker, args=(
-            grid, queue, progress, worker_id, stop_event, stats, initial_cell))
-        processes.append(p)
-        p.start()
-
-    for p in processes:
-        p.join()
-
-    stop_event.set()
-    display_thread.join()
-
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-
-    clear_screen()
-    if not queue.empty():
-        solved_grid = queue.get()
-        print("Sudoku solved:")
-        print_grid(solved_grid)
-        shared_state['solution'] = solved_grid
-        with open(save_file, "w") as f:
-            for row in solved_grid:
+        with open(save_file, 'w') as f:
+            for row in grid:
                 f.write(" ".join(map(str, row)) + "\n")
-        print("\nSolved grid saved to sudoku_save.txt")
+        print("Sudoku solved in {:.2f} seconds after {} trials".format(elapsed_time, stats['trials']))
     else:
+        shared_state['solution'] = None
         print("No solution exists.")
 
-    print("\nStatistics:")
-    print(f"Time taken: {elapsed_time:.2f} seconds")
-    print(f"Total attempts: {stats['attempts']}")
-    print(f"Total backtracks: {stats['backtracks']}")
-    if stats['attempts'] > 0:
-        print(f"Backtrack ratio: {stats['backtracks']/stats['attempts']:.2f}")
-    else:
-        print("No attempts were made.")
+    shared_state['steps'] = steps
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -385,6 +389,7 @@ def main():
     shared_state['input_received'] = False
     shared_state['server_failed'] = False
     shared_state['port'] = None
+    shared_state['steps'] = []
 
     # Try to load saved grid
     if os.path.exists(save_file):
